@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LEX Payment Summary Parser</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f1117; --bg2: #13161e; --bg3: #1a1d24;
+    --border: #1e2230; --border2: #2a2f3e;
+    --text: #e8e6e0; --muted: #666; --muted2: #444;
+    --accent: #4a9eff; --green: #34d399; --red: #fb7185;
+    --purple: #a78bfa; --slate: #94a3b8;
+  }
+  body { background: var(--bg); color: var(--text); font-family: 'IBM Plex Mono','Courier New',monospace; min-height: 100vh; padding: 2.5rem 2rem; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg3); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+  .container { max-width: 1200px; margin: 0 auto; }
+  header { margin-bottom: 2rem; }
+  .tag { font-size: 0.65rem; color: var(--accent); letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 0.3rem; }
+  h1 { font-family: 'IBM Plex Sans',sans-serif; font-size: 1.6rem; font-weight: 600; color: #fff; margin-bottom: 0.3rem; }
+  .subtitle { font-size: 0.75rem; color: var(--muted); }
+
+  /* Account code toggle */
+  .account-toggle-wrap {
+    display: flex; align-items: center; gap: 1rem;
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 0.85rem 1.25rem;
+    margin-bottom: 1.25rem;
+  }
+  .toggle-label { font-size: 0.72rem; color: var(--muted); white-space: nowrap; }
+  .toggle-pills { display: flex; background: var(--bg3); border-radius: 6px; padding: 3px; gap: 3px; }
+  .toggle-pill {
+    padding: 5px 18px; border-radius: 4px; font-size: 0.8rem; font-weight: 500;
+    cursor: pointer; border: none; background: transparent;
+    color: var(--muted); font-family: 'IBM Plex Mono',monospace;
+    transition: background 0.15s, color 0.15s;
+  }
+  .toggle-pill.active { background: var(--accent); color: #fff; }
+  .toggle-pill:not(.active):hover { color: var(--text); }
+  .toggle-hint { font-size: 0.68rem; color: var(--muted2); }
+
+  .drop-zone { border: 1.5px dashed var(--border2); border-radius: 10px; padding: 2.5rem 2rem; text-align: center; cursor: pointer; background: var(--bg2); transition: border-color 0.2s, background 0.2s; margin-bottom: 1.25rem; user-select: none; }
+  .drop-zone:hover, .drop-zone.dragging { border-color: var(--accent); background: rgba(74,158,255,0.05); }
+  .drop-icon { font-size: 2rem; margin-bottom: 0.6rem; line-height: 1; }
+  .drop-label { font-size: 0.9rem; color: #aaa; font-family: 'IBM Plex Sans',sans-serif; }
+  .drop-label.active { color: var(--accent); }
+  .drop-hint { font-size: 0.7rem; color: var(--muted2); margin-top: 0.4rem; }
+  .error { display: none; background: rgba(251,113,133,0.1); border: 1px solid rgba(251,113,133,0.3); border-radius: 8px; padding: 0.8rem 1rem; color: var(--red); font-size: 0.8rem; margin-bottom: 1.25rem; }
+  #results { display: none; }
+
+  .vat-check { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; }
+  .vat-check-title { font-size: 0.65rem; color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase; font-weight: 500; margin-bottom: 0.75rem; }
+  .vat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; }
+  .vat-cell { display: flex; flex-direction: column; gap: 3px; }
+  .vat-cell-label { font-size: 0.65rem; color: var(--muted); }
+  .vat-cell-value { font-size: 0.9rem; font-weight: 500; font-variant-numeric: tabular-nums; }
+
+  .summary-bar { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; margin-bottom: 1rem; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; font-size: 0.72rem; }
+  .chip-label { color: var(--muted); }
+  .match-badge { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 6px; font-size: 0.72rem; font-weight: 500; }
+  .match-badge.ok { background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.3); color: var(--green); }
+  .match-badge.err { background: rgba(251,113,133,0.1); border: 1px solid rgba(251,113,133,0.3); color: var(--red); }
+  .copy-btn { margin-left: auto; padding: 5px 14px; background: #1a3a6e; border: 1px solid #2a5298; border-radius: 6px; color: #7ab3ff; cursor: pointer; font-size: 0.72rem; font-family: 'IBM Plex Mono',monospace; letter-spacing: 0.05em; transition: background 0.15s; }
+  .copy-btn:hover { background: #2a5298; }
+
+  .table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.72rem; }
+  thead tr { background: var(--bg2); border-bottom: 1px solid var(--border); }
+  th { padding: 8px 10px; text-align: left; color: var(--accent); font-weight: 500; font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; position: sticky; top: 0; background: var(--bg2); z-index: 2; }
+  td { padding: 6px 10px; border-bottom: 1px solid #181b24; }
+  tr.row-in { background: rgba(52,211,153,0.03); }
+  tr.row-out { background: rgba(251,113,133,0.05); }
+  tr.row-in:hover { background: rgba(52,211,153,0.08); }
+  tr.row-out:hover { background: rgba(251,113,133,0.1); }
+  .amt { text-align: right; font-variant-numeric: tabular-nums; }
+  .pos { color: var(--green); }
+  .neg { color: var(--red); }
+  .muted { color: #888; }
+  .slate { color: var(--slate); }
+  .purple { color: var(--purple); }
+  .amber { color: #fbbf24; }
+  .desc { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  tfoot tr { background: var(--bg2); border-top: 2px solid var(--border2); }
+  tfoot td { padding: 7px 10px; }
+  .foot-label { font-size: 0.65rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+  .sheet-note { margin-top: 0.6rem; font-size: 0.65rem; color: var(--muted2); }
+  .sheet-note span { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="tag">LEX</div>
+    <h1>Payment Summary Parser</h1>
+    <p class="subtitle">Drop a LEX Payment Summary .xlsx — get clean accounting entries instantly</p>
+  </header>
+
+  <!-- ACCOUNT CODE TOGGLE -->
+  <div class="account-toggle-wrap">
+    <span class="toggle-label">*AccountCode</span>
+    <div class="toggle-pills">
+      <button class="toggle-pill active" id="pill-100" onclick="setAccountCode('100')">100</button>
+      <button class="toggle-pill" id="pill-200" onclick="setAccountCode('200')">200</button>
+    </div>
+    <span class="toggle-hint">Select the account code to apply to all entries</span>
+  </div>
+
+  <input type="file" id="file-input" accept=".xlsx,.xls" style="display:none">
+
+  <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+    <div class="drop-icon">📂</div>
+    <div class="drop-label" id="drop-label">Drop your LEX Payment Summary here, or click to browse</div>
+    <div class="drop-hint">.xlsx files only</div>
+  </div>
+
+  <div class="error" id="err"></div>
+
+  <div id="results">
+
+    <div class="vat-check">
+      <div class="vat-check-title">VAT Check</div>
+      <div class="vat-grid">
+        <div class="vat-cell">
+          <span class="vat-cell-label">Our VAT (sum of Amount ÷ 6 for 20% rows)</span>
+          <span class="vat-cell-value" id="vat-ours">-</span>
+        </div>
+        <div class="vat-cell">
+          <span class="vat-cell-label">LEX VAT (Total Pyt row)</span>
+          <span class="vat-cell-value" id="vat-lex">-</span>
+        </div>
+        <div class="vat-cell">
+          <span class="vat-cell-label">Result</span>
+          <span class="match-badge" id="vat-badge" style="margin-top:2px;"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="summary-bar">
+      <div class="chip"><span class="chip-label">Entries</span><strong id="c-entries">0</strong></div>
+      <div class="chip"><span class="chip-label">Our total</span><strong id="c-total">-</strong></div>
+      <div class="chip"><span class="chip-label">LEX Total Pyt</span><strong id="c-lex">-</strong></div>
+      <span class="match-badge" id="match-badge"></span>
+      <button class="copy-btn" onclick="copyCSV()">&#9003; Copy CSV</button>
+      <button class="copy-btn" onclick="downloadCSV()" style="background:#1a4a2e;border-color:#2a7a4e;color:#6ee7a0;">&#8659; Download CSV</button>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>*Date</th><th>*Amount</th><th>Payee</th><th>Description</th><th>*TaxType</th><th>Reference</th><th>*AccountCode</th>
+          </tr>
+        </thead>
+        <tbody id="tbl-body"></tbody>
+        <tfoot>
+          <tr>
+            <td class="foot-label">Total</td>
+            <td class="amt" id="foot-total"></td>
+            <td colspan="5"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <p class="sheet-note">Sheet: <span id="sheet-name"></span> &middot; Payments Out shown as negative &middot; Payee fixed as "Chambers"</p>
+
+  </div>
+</div>
+<script>
+var parsedRows = [];
+var accountCode = '100';
+
+function setAccountCode(code) {
+  accountCode = code;
+  document.getElementById('pill-100').className = 'toggle-pill' + (code === '100' ? ' active' : '');
+  document.getElementById('pill-200').className = 'toggle-pill' + (code === '200' ? ' active' : '');
+  // Update all account code cells in table instantly
+  var cells = document.querySelectorAll('.ac-cell');
+  cells.forEach(function(c){ c.textContent = code; });
+}
+
+function fmt(n) {
+  return new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(n);
+}
+
+function showErr(msg) {
+  var el = document.getElementById('err');
+  el.textContent = 'Error: ' + msg;
+  el.style.display = 'block';
+  document.getElementById('results').style.display = 'none';
+}
+
+function fmtDate(val) {
+  if (!val) return '';
+  if (typeof val === 'number') {
+    var d = XLSX.SSF.parse_date_code(val);
+    return String(d.d).padStart(2,'0') + '/' + String(d.m).padStart(2,'0') + '/' + d.y;
+  }
+  return String(val);
+}
+
+function parseFile(file) {
+  document.getElementById('err').style.display = 'none';
+  var lbl = document.getElementById('drop-label');
+  lbl.textContent = file.name;
+  lbl.classList.add('active');
+
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var wb = XLSX.read(e.target.result, { type: 'array', cellDates: false });
+      var skip = ['REPORT TOTALS','ALL BARRISTERS','Case Type Totals','Case Funding Totals'];
+      var sheetName = wb.SheetNames.find(function(n){ return skip.indexOf(n) === -1; }) || wb.SheetNames[0];
+      var ws = wb.Sheets[sheetName];
+      var raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+
+      var headerIdx = -1;
+      for (var i = 0; i < raw.length; i++) {
+        if (raw[i] && raw[i].some(function(c){ return typeof c === 'string' && c.toUpperCase().indexOf('CASE ID') !== -1; })) {
+          headerIdx = i; break;
+        }
+      }
+      if (headerIdx === -1) { showErr('Could not find CASE ID header row'); return; }
+
+      var headers = raw[headerIdx].map(function(h){ return h ? String(h).toUpperCase().trim() : ''; });
+
+      function colExact(name) { return headers.findIndex(function(h){ return h === name; }); }
+      function col(name) {
+        var exact = colExact(name);
+        return exact !== -1 ? exact : headers.findIndex(function(h){ return h.indexOf(name) !== -1; });
+      }
+
+      var caseIdC  = col('CASE ID');
+      var companyC = col('COMPANY');
+      var titleC   = col('CASE TITLE');
+      var receivedC= col('RECEIVED');
+      var vatPctC  = col('VAT%');
+      var amountC  = col('TOTAL');
+      var taxnoC   = col('TAXNO');
+      var vatAmtC  = colExact('VAT');
+
+      var outStart = -1;
+      for (var i = headerIdx; i < raw.length; i++) {
+        if (raw[i] && raw[i].some(function(c){ return typeof c === 'string' && c.toUpperCase().trim() === 'PAYMENTS OUT'; })) {
+          outStart = i; break;
+        }
+      }
+
+      var totalPyt = null;
+      var lexVat   = null;
+      for (var i = 0; i < raw.length; i++) {
+        var row = raw[i]; if (!row) continue;
+        for (var j = 0; j < row.length; j++) {
+          if (typeof row[j] === 'string' && /total\s*pyt|pyt\s*total/i.test(row[j].trim())) {
+            if (amountC !== -1 && typeof row[amountC] === 'number') totalPyt = row[amountC];
+            if (vatAmtC !== -1 && typeof row[vatAmtC] === 'number') lexVat = row[vatAmtC];
+            break;
+          }
+        }
+        if (totalPyt !== null) break;
+      }
+
+      parsedRows = [];
+      for (var i = headerIdx + 1; i < raw.length; i++) {
+        var row = raw[i]; if (!row) continue;
+        var cid = row[caseIdC]; if (!cid) continue;
+        var cidStr = String(cid).trim();
+        if (!cidStr || !/^\d/.test(cidStr)) continue;
+
+        var isOut    = outStart !== -1 && i > outStart;
+        var amount   = typeof row[amountC] === 'number' ? row[amountC] : parseFloat(row[amountC]) || 0;
+        var finalAmt = isOut ? -Math.abs(amount) : amount;
+        var vatPct   = typeof row[vatPctC] === 'number' ? row[vatPctC] : parseFloat(row[vatPctC]) || 0;
+        var taxType  = vatPct >= 0.15 ? '20% (VAT on Income)' : 'Zero Rated Income';
+        var company  = row[companyC] ? String(row[companyC]).trim() : '';
+        var title    = row[titleC]   ? String(row[titleC]).trim()   : '';
+        var taxno    = row[taxnoC]   ? String(row[taxnoC]).trim()   : '';
+        var description = [cidStr, company, title].filter(Boolean).join(' | ');
+
+        parsedRows.push({
+          date: fmtDate(row[receivedC]),
+          amount: finalAmt,
+          payee: 'Chambers',
+          description: description,
+          taxType: taxType,
+          reference: isOut ? description : taxno,
+          isOut: isOut
+        });
+      }
+
+      // VAT check
+      var ourVat = parsedRows.reduce(function(s, r) {
+        return r.taxType === '20% (VAT on Income)' ? s + (r.amount / 6) : s;
+      }, 0);
+      document.getElementById('vat-ours').textContent = fmt(ourVat);
+      document.getElementById('vat-ours').className = 'vat-cell-value ' + (ourVat >= 0 ? 'pos' : 'neg');
+      document.getElementById('vat-lex').textContent = lexVat !== null ? fmt(lexVat) : 'n/a';
+      var vatBadge = document.getElementById('vat-badge');
+      if (lexVat !== null) {
+        var vatMatch = Math.abs(ourVat - lexVat) < 0.02;
+        vatBadge.textContent = vatMatch ? '✓ VAT matches' : '✗ Difference: ' + fmt(ourVat - lexVat);
+        vatBadge.className = 'match-badge ' + (vatMatch ? 'ok' : 'err');
+      } else {
+        vatBadge.textContent = 'LEX VAT not found';
+        vatBadge.className = 'match-badge err';
+      }
+
+      // Total check
+      var ourTotal = parsedRows.reduce(function(s, r){ return s + r.amount; }, 0);
+      var match = totalPyt !== null && Math.abs(totalPyt - ourTotal) < 0.01;
+      document.getElementById('c-entries').textContent = parsedRows.length;
+      document.getElementById('c-total').textContent = fmt(ourTotal);
+      document.getElementById('c-lex').textContent = totalPyt !== null ? fmt(totalPyt) : 'n/a';
+      var badge = document.getElementById('match-badge');
+      badge.textContent = match ? '✓ Totals match' : '✗ Difference: ' + fmt(ourTotal - (totalPyt || 0));
+      badge.className = 'match-badge ' + (match ? 'ok' : 'err');
+
+      // Render table
+      var tbody = document.getElementById('tbl-body');
+      tbody.innerHTML = '';
+      parsedRows.forEach(function(r) {
+        var tr = document.createElement('tr');
+        tr.className = r.isOut ? 'row-out' : 'row-in';
+        tr.innerHTML =
+          '<td>' + r.date + '</td>' +
+          '<td class="amt ' + (r.amount < 0 ? 'neg' : 'pos') + '">' + fmt(r.amount) + '</td>' +
+          '<td class="muted">' + r.payee + '</td>' +
+          '<td class="desc" title="' + r.description.replace(/"/g,'&quot;') + '">' + r.description + '</td>' +
+          '<td class="purple" style="white-space:nowrap">' + r.taxType + '</td>' +
+          '<td class="slate desc" title="' + r.reference.replace(/"/g,'&quot;') + '">' + r.reference + '</td>' +
+          '<td class="amber ac-cell">' + accountCode + '</td>';
+        tbody.appendChild(tr);
+      });
+
+      var ft = document.getElementById('foot-total');
+      ft.textContent = fmt(ourTotal);
+      ft.className = 'amt ' + (ourTotal >= 0 ? 'pos' : 'neg');
+
+      document.getElementById('sheet-name').textContent = sheetName;
+      document.getElementById('results').style.display = 'block';
+
+    } catch(ex) { showErr(ex.message); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function copyCSV() {
+  if (!parsedRows.length) return;
+  var lines = ['*Date,*Amount,Payee,Description,*TaxType,Reference,*AccountCode'];
+  parsedRows.forEach(function(r) {
+    lines.push([
+      r.date,
+      r.amount.toFixed(2),
+      r.payee,
+      '"' + r.description.replace(/"/g,'""') + '"',
+      r.taxType,
+      '"' + r.reference.replace(/"/g,'""') + '"',
+      accountCode
+    ].join(','));
+  });
+  navigator.clipboard.writeText(lines.join('\n'));
+}
+
+function downloadCSV() {
+  if (!parsedRows.length) return;
+  var lines = ['*Date,*Amount,Payee,Description,*TaxType,Reference,*AccountCode'];
+  parsedRows.forEach(function(r) {
+    lines.push([
+      r.date,
+      r.amount.toFixed(2),
+      r.payee,
+      '"' + r.description.replace(/"/g,'""') + '"',
+      r.taxType,
+      '"' + r.reference.replace(/"/g,'""') + '"',
+      accountCode
+    ].join(','));
+  });
+  var blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'lex_payment_summary.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+var dz = document.getElementById('drop-zone');
+dz.addEventListener('dragover', function(e){ e.preventDefault(); dz.classList.add('dragging'); });
+dz.addEventListener('dragleave', function(){ dz.classList.remove('dragging'); });
+dz.addEventListener('drop', function(e){
+  e.preventDefault(); dz.classList.remove('dragging');
+  var f = e.dataTransfer.files[0]; if (f) parseFile(f);
+});
+document.getElementById('file-input').addEventListener('change', function(e){
+  if (e.target.files[0]) parseFile(e.target.files[0]);
+});
+</script>
+</body>
+</html>
