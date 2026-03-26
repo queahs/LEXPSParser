@@ -193,8 +193,7 @@
     <input type="text" id="chambers-custom" placeholder="Enter chambers name"
       style="display:none; background:var(--bg3); border:1px solid var(--accent); border-radius:6px;
              color:var(--text); font-family:'IBM Plex Mono',monospace; font-size:0.8rem;
-             padding:5px 10px; outline:none; min-width:220px;"
-      oninput="setChambers(this.value)">
+             padding:5px 10px; outline:none; min-width:220px;">
     <span class="chambers-hint" id="chambers-hint">Select the chambers to apply to all entries</span>
   </div>
 
@@ -264,6 +263,11 @@ var parsedRows = [];
 var accountCode = '100';
 var selectedChambers = 'Chambers';
 
+function updatePayeeCells() {
+  var cells = document.querySelectorAll('.payee-cell');
+  cells.forEach(function(c){ c.textContent = selectedChambers; });
+}
+
 function setChambers(val) {
   var customInput = document.getElementById('chambers-custom');
   var hint = document.getElementById('chambers-hint');
@@ -277,10 +281,16 @@ function setChambers(val) {
     hint.textContent = 'Select the chambers to apply to all entries';
     selectedChambers = val;
   }
-  // Update all payee cells in table instantly
-  var cells = document.querySelectorAll('.payee-cell');
-  cells.forEach(function(c){ c.textContent = selectedChambers; });
+  updatePayeeCells();
 }
+
+// Attach persistent listener once — avoids re-render focus loss on every keystroke
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('chambers-custom').addEventListener('input', function() {
+    selectedChambers = this.value;
+    updatePayeeCells();
+  });
+});
 
 function setAccountCode(code) {
   accountCode = code;
@@ -597,7 +607,7 @@ function copyCSV() {
     lines.push([
       r.date,
       r.amount.toFixed(2),
-      r.payee,
+      selectedChambers,
       '"' + r.description.replace(/"/g,'""') + '"',
       r.taxType,
       '"' + r.reference.replace(/"/g,'""') + '"',
@@ -614,7 +624,7 @@ function downloadCSV() {
     lines.push([
       r.date,
       r.amount.toFixed(2),
-      r.payee,
+      selectedChambers,
       '"' + r.description.replace(/"/g,'""') + '"',
       r.taxType,
       '"' + r.reference.replace(/"/g,'""') + '"',
