@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LEX Payment Summary Parser</title>
+<title>LEX Payment Summary Parser v3</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap" rel="stylesheet">
 <style>
@@ -43,6 +43,21 @@
   .toggle-pill.active { background: var(--accent); color: #fff; }
   .toggle-pill:not(.active):hover { color: var(--text); }
   .toggle-hint { font-size: 0.68rem; color: var(--muted2); }
+  .chambers-wrap {
+    display: flex; align-items: center; gap: 1rem;
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 0.85rem 1.25rem;
+    margin-bottom: 1.25rem;
+  }
+  .chambers-label { font-size: 0.72rem; color: var(--muted); white-space: nowrap; }
+  .chambers-select {
+    background: var(--bg3); border: 1px solid var(--border2); border-radius: 6px;
+    color: var(--text); font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem;
+    padding: 5px 10px; cursor: pointer; outline: none;
+    transition: border-color 0.15s;
+  }
+  .chambers-select:focus, .chambers-select:hover { border-color: var(--accent); }
+  .chambers-hint { font-size: 0.68rem; color: var(--muted2); }
 
   .drop-zone { border: 1.5px dashed var(--border2); border-radius: 10px; padding: 2.5rem 2rem; text-align: center; cursor: pointer; background: var(--bg2); transition: border-color 0.2s, background 0.2s; margin-bottom: 1.25rem; user-select: none; }
   .drop-zone:hover, .drop-zone.dragging { border-color: var(--accent); background: rgba(74,158,255,0.05); }
@@ -78,6 +93,11 @@
   tr.row-out { background: rgba(251,113,133,0.05); }
   tr.row-in:hover { background: rgba(52,211,153,0.08); }
   tr.row-out:hover { background: rgba(251,113,133,0.1); }
+  tr.row-vatwarning { background: rgba(251,191,36,0.18); box-shadow: inset 3px 0 0 #fbbf24; }
+  tr.row-vatwarning:hover { background: rgba(251,191,36,0.28); }
+  tr.row-adj { background: rgba(251,191,36,0.07); box-shadow: inset 3px 0 0 rgba(251,191,36,0.4); }
+  tr.row-adj:hover { background: rgba(251,191,36,0.13); }
+  tr.row-adj td { font-style: italic; color: #a89060; }
   .amt { text-align: right; font-variant-numeric: tabular-nums; }
   .pos { color: var(--green); }
   .neg { color: var(--red); }
@@ -98,7 +118,7 @@
   <header>
     <div class="tag">LEX</div>
     <h1>Payment Summary Parser</h1>
-    <p class="subtitle">Drop a LEX Payment Summary .xlsx — get clean accounting entries instantly</p>
+    <p class="subtitle">Drop a LEX Payment Summary .xlsx — get clean accounting entries instantly &middot; Supports multiple barrister sheets</p>
   </header>
 
   <!-- ACCOUNT CODE TOGGLE -->
@@ -109,6 +129,73 @@
       <button class="toggle-pill" id="pill-200" onclick="setAccountCode('200')">200</button>
     </div>
     <span class="toggle-hint">Select the account code to apply to all entries</span>
+  </div>
+
+  <!-- CHAMBERS DROPDOWN -->
+  <div class="chambers-wrap">
+    <span class="chambers-label">Payee</span>
+    <select class="chambers-select" id="chambers-select" onchange="setChambers(this.value)">
+      <option value="Chambers">Chambers</option>
+      <option value="11KBW">11KBW</option>
+      <option value="1 Hare Court">1 Hare Court</option>
+      <option value="1GC|Family Law">1GC|Family Law</option>
+      <option value="2 Bedford Row">2 Bedford Row</option>
+      <option value="2 Hare Court">2 Hare Court</option>
+      <option value="23ES">23ES</option>
+      <option value="25 Bedford Row">25 Bedford Row</option>
+      <option value="3 Verulam Buildings (3VB)">3 Verulam Buildings (3VB)</option>
+      <option value="39 Essex Chambers">39 Essex Chambers</option>
+      <option value="4 New Square Chambers">4 New Square Chambers</option>
+      <option value="4 Pump Court">4 Pump Court</option>
+      <option value="4 Stone Buildings">4 Stone Buildings</option>
+      <option value="4PB">4PB</option>
+      <option value="5 Essex Chambers">5 Essex Chambers</option>
+      <option value="5 King's Bench Walk">5 King's Bench Walk</option>
+      <option value="6KBW College Hill">6KBW College Hill</option>
+      <option value="7 King's Bench Walk (7KBW)">7 King's Bench Walk (7KBW)</option>
+      <option value="Blackstone Chambers">Blackstone Chambers</option>
+      <option value="Brick Court Chambers">Brick Court Chambers</option>
+      <option value="Cobden House Chambers">Cobden House Chambers</option>
+      <option value="Dere Street Barristers">Dere Street Barristers</option>
+      <option value="Doughty Street Chambers">Doughty Street Chambers</option>
+      <option value="Essex Court Chambers">Essex Court Chambers</option>
+      <option value="Exchange Chambers">Exchange Chambers</option>
+      <option value="Falcon Chambers">Falcon Chambers</option>
+      <option value="Fountain Court Chambers">Fountain Court Chambers</option>
+      <option value="Garden Court Chambers">Garden Court Chambers</option>
+      <option value="Garden Court North Chambers">Garden Court North Chambers</option>
+      <option value="Gatehouse Chambers">Gatehouse Chambers</option>
+      <option value="Gray's Inn Tax Chambers">Gray's Inn Tax Chambers</option>
+      <option value="Henderson Chambers">Henderson Chambers</option>
+      <option value="Keating Chambers">Keating Chambers</option>
+      <option value="Kings Chambers">Kings Chambers</option>
+      <option value="Landmark Chambers">Landmark Chambers</option>
+      <option value="Littleton Chambers">Littleton Chambers</option>
+      <option value="Maitland Chambers">Maitland Chambers</option>
+      <option value="Matrix Chambers">Matrix Chambers</option>
+      <option value="Monckton Chambers">Monckton Chambers</option>
+      <option value="Mountford Chambers">Mountford Chambers</option>
+      <option value="No5 Barristers' Chambers">No5 Barristers' Chambers</option>
+      <option value="One Essex Court">One Essex Court</option>
+      <option value="Outer Temple Chambers">Outer Temple Chambers</option>
+      <option value="Park Square Barristers">Park Square Barristers</option>
+      <option value="Pump Court Tax Chambers">Pump Court Tax Chambers</option>
+      <option value="Red Lion Chambers">Red Lion Chambers</option>
+      <option value="Serle Court">Serle Court</option>
+      <option value="South Square">South Square</option>
+      <option value="St John's Chambers">St John's Chambers</option>
+      <option value="St Johns Buildings">St Johns Buildings</option>
+      <option value="St Philips Chambers">St Philips Chambers</option>
+      <option value="Twenty Essex">Twenty Essex</option>
+      <option value="Wilberforce Chambers">Wilberforce Chambers</option>
+      <option value="__other__">Other (enter manually)...</option>
+    </select>
+    <input type="text" id="chambers-custom" placeholder="Enter chambers name"
+      style="display:none; background:var(--bg3); border:1px solid var(--accent); border-radius:6px;
+             color:var(--text); font-family:'IBM Plex Mono',monospace; font-size:0.8rem;
+             padding:5px 10px; outline:none; min-width:220px;"
+      oninput="setChambers(this.value)">
+    <span class="chambers-hint" id="chambers-hint">Select the chambers to apply to all entries</span>
   </div>
 
   <input type="file" id="file-input" accept=".xlsx,.xls" style="display:none">
@@ -139,6 +226,7 @@
           <span class="match-badge" id="vat-badge" style="margin-top:2px;"></span>
         </div>
       </div>
+      <div id="vat-warning" style="display:none; margin-top:0.75rem; padding:0.5rem 0.75rem; background:rgba(251,191,36,0.08); border:1px solid rgba(251,191,36,0.3); border-radius:6px; font-size:0.72rem; color:#fbbf24;"></div>
     </div>
 
     <div class="summary-bar">
@@ -167,13 +255,32 @@
         </tfoot>
       </table>
     </div>
-    <p class="sheet-note">Sheet: <span id="sheet-name"></span> &middot; Payments Out shown as negative &middot; Payee fixed as "Chambers"</p>
+    <p class="sheet-note">Sheet(s): <span id="sheet-name"></span> &middot; Payments Out shown as negative</p>
 
   </div>
 </div>
 <script>
 var parsedRows = [];
 var accountCode = '100';
+var selectedChambers = 'Chambers';
+
+function setChambers(val) {
+  var customInput = document.getElementById('chambers-custom');
+  var hint = document.getElementById('chambers-hint');
+  if (val === '__other__') {
+    customInput.style.display = 'inline-block';
+    customInput.focus();
+    hint.textContent = 'Type the chambers name above';
+    selectedChambers = customInput.value || '';
+  } else {
+    customInput.style.display = 'none';
+    hint.textContent = 'Select the chambers to apply to all entries';
+    selectedChambers = val;
+  }
+  // Update all payee cells in table instantly
+  var cells = document.querySelectorAll('.payee-cell');
+  cells.forEach(function(c){ c.textContent = selectedChambers; });
+}
 
 function setAccountCode(code) {
   accountCode = code;
@@ -214,90 +321,36 @@ function parseFile(file) {
   reader.onload = function(e) {
     try {
       var wb = XLSX.read(e.target.result, { type: 'array', cellDates: false });
+
+      // ── Identify all Payment Summary sheets ─────────────────────────────────
+      // Exclude known non-barrister summary sheets; also skip ALL BARRISTERS
+      // (which shares the CASE ID header but is an aggregate view, not a per-
+      // barrister ledger — it lacks individual totals rows we need).
       var skip = ['REPORT TOTALS','ALL BARRISTERS','Case Type Totals','Case Funding Totals'];
-      var sheetName = wb.SheetNames.find(function(n){ return skip.indexOf(n) === -1; }) || wb.SheetNames[0];
-      var ws = wb.Sheets[sheetName];
-      var raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
-
-      var headerIdx = -1;
-      for (var i = 0; i < raw.length; i++) {
-        if (raw[i] && raw[i].some(function(c){ return typeof c === 'string' && c.toUpperCase().indexOf('CASE ID') !== -1; })) {
-          headerIdx = i; break;
-        }
-      }
-      if (headerIdx === -1) { showErr('Could not find CASE ID header row'); return; }
-
-      var headers = raw[headerIdx].map(function(h){ return h ? String(h).toUpperCase().trim() : ''; });
-
-      function colExact(name) { return headers.findIndex(function(h){ return h === name; }); }
-      function col(name) {
-        var exact = colExact(name);
-        return exact !== -1 ? exact : headers.findIndex(function(h){ return h.indexOf(name) !== -1; });
-      }
-
-      var caseIdC  = col('CASE ID');
-      var companyC = col('COMPANY');
-      var titleC   = col('CASE TITLE');
-      var receivedC= col('RECEIVED');
-      var vatPctC  = col('VAT%');
-      var amountC  = col('TOTAL');
-      var taxnoC   = col('TAXNO');
-      var vatAmtC  = colExact('VAT');
-
-      var outStart = -1;
-      for (var i = headerIdx; i < raw.length; i++) {
-        if (raw[i] && raw[i].some(function(c){ return typeof c === 'string' && c.toUpperCase().trim() === 'PAYMENTS OUT'; })) {
-          outStart = i; break;
-        }
-      }
-
-      // ── Extract LEX totals using a multi-strategy approach ──────────────────
-      // Strategy 1: scan the active sheet for known total-row labels
-      // Strategy 2: scan the REPORT TOTALS sheet (present in all known formats)
-      var totalPyt = null;
-      var lexVat   = null;
 
       // Helper: given an array of rows, scan for a total row and extract TOTAL + VAT
       function extractTotalsFromRows(rows, totalColHint, vatColHint) {
-        // Patterns that indicate a grand-total row (ordered by preference)
         var totalPatterns = [
-          /total\s*pyt|pyt\s*total/i,            // "Total Pyt" / "Pyt Total"
-          /pyt\s*total/i,                          // "PYT TOTAL"
-          /total\s*payments?/i,                    // "TOTAL PAYMENTS"
-          /^totals?\s*\(/i,                        // "TOTALS (41 Cases)"
-          /^totals?$/i,                            // bare "TOTAL" / "TOTALS"
-          /^payments?$/i,                          // bare "PAYMENTS" row (barrister sheet)
-          /^payment$/i,                            // bare "PAYMENT" row (barrister sheet)
+          /total\s*pyt|pyt\s*total/i,
+          /pyt\s*total/i,
+          /total\s*payments?/i,
+          /^totals?\s*\(/i,
+          /^totals?$/i,
+          /^payments?$/i,
+          /^payment$/i,
         ];
         for (var pi = 0; pi < totalPatterns.length; pi++) {
           for (var ri = 0; ri < rows.length; ri++) {
             var row = rows[ri]; if (!row) continue;
             for (var ci = 0; ci < row.length; ci++) {
               if (typeof row[ci] === 'string' && totalPatterns[pi].test(row[ci].trim())) {
-                // Found a matching label – now grab the numbers
-                // Try the column hints from the data sheet first, then scan for numbers
                 var tot = null, vat = null;
-                if (totalColHint !== -1 && typeof row[totalColHint] === 'number') {
-                  tot = row[totalColHint];
-                }
-                if (vatColHint !== -1 && typeof row[vatColHint] === 'number') {
-                  vat = row[vatColHint];
-                }
-                // Fallback: pick up to the first two numeric cells in this row
+                if (totalColHint !== -1 && typeof row[totalColHint] === 'number') tot = row[totalColHint];
+                if (vatColHint !== -1 && typeof row[vatColHint] === 'number') vat = row[vatColHint];
                 if (tot === null || vat === null) {
                   var nums = row.filter(function(v){ return typeof v === 'number'; });
-                  // For REPORT TOTALS sheet the columns are: TOTAL, FEES, VAT, EXP, EXP VAT, NET, [COMM%], [COMM], [COMM VAT], PAYMENT
-                  // TOTAL is col index 1, VAT is col index 3 (0-based after label in col 0)
-                  if (tot === null) {
-                    // column 1 is TOTAL in REPORT TOTALS sheet
-                    if (typeof row[1] === 'number') tot = row[1];
-                    else if (nums.length > 0) tot = nums[0];
-                  }
-                  if (vat === null) {
-                    // column 3 is VAT in REPORT TOTALS sheet
-                    if (typeof row[3] === 'number') vat = row[3];
-                    else if (nums.length > 1) vat = nums[1];
-                  }
+                  if (tot === null) { if (typeof row[1] === 'number') tot = row[1]; else if (nums.length > 0) tot = nums[0]; }
+                  if (vat === null) { if (typeof row[3] === 'number') vat = row[3]; else if (nums.length > 1) vat = nums[1]; }
                 }
                 if (tot !== null) return { total: tot, vat: vat };
               }
@@ -307,11 +360,157 @@ function parseFile(file) {
         return null;
       }
 
-      // Strategy 1: scan current (barrister) sheet
-      var s1 = extractTotalsFromRows(raw, amountC !== -1 ? amountC : -1, vatAmtC !== -1 ? vatAmtC : -1);
-      if (s1) { totalPyt = s1.total; lexVat = s1.vat; }
+      // Detect which sheets are barrister payment summaries: must not be in skip
+      // list AND must contain a CASE ID header row.
+      var psSheets = wb.SheetNames.filter(function(n) {
+        if (skip.indexOf(n) !== -1) return false;
+        var rows = XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: null });
+        return rows.some(function(r) {
+          return r && r.some(function(c) {
+            return typeof c === 'string' && c.toUpperCase().indexOf('CASE ID') !== -1;
+          });
+        });
+      });
 
-      // Strategy 2: if still missing, try REPORT TOTALS sheet
+      if (psSheets.length === 0) { showErr('Could not find any Payment Summary sheet with a CASE ID header row'); return; }
+
+      // ── Parse each sheet and accumulate rows ────────────────────────────────
+      parsedRows = [];
+      var totalPyt = null;
+      var lexVat   = null;
+      var sheetTotals = [];  // per-sheet LEX totals to sum
+
+      for (var si = 0; si < psSheets.length; si++) {
+        var sheetName = psSheets[si];
+        var ws = wb.Sheets[sheetName];
+        var raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+
+        var headerIdx = -1;
+        for (var i = 0; i < raw.length; i++) {
+          if (raw[i] && raw[i].some(function(c){ return typeof c === 'string' && c.toUpperCase().indexOf('CASE ID') !== -1; })) {
+            headerIdx = i; break;
+          }
+        }
+        if (headerIdx === -1) continue;
+
+        var headers = raw[headerIdx].map(function(h){ return h ? String(h).toUpperCase().trim() : ''; });
+
+        function colExact(name) { return headers.findIndex(function(h){ return h === name; }); }
+        function col(name) {
+          var exact = colExact(name);
+          return exact !== -1 ? exact : headers.findIndex(function(h){ return h.indexOf(name) !== -1; });
+        }
+
+        var caseIdC  = col('CASE ID');
+        var companyC = col('COMPANY');
+        var titleC   = col('CASE TITLE');
+        var receivedC= col('RECEIVED');
+        var vatPctC  = col('VAT%');
+        var amountC  = col('TOTAL');
+        var taxnoC   = col('TAXNO');
+        var vatAmtC  = colExact('VAT');
+
+        var outStart = -1;
+        for (var i = headerIdx; i < raw.length; i++) {
+          if (raw[i] && raw[i].some(function(c){ return typeof c === 'string' && c.toUpperCase().trim() === 'PAYMENTS OUT'; })) {
+            outStart = i; break;
+          }
+        }
+
+        // Per-sheet LEX totals (strategy 1: from the sheet itself)
+        var st = extractTotalsFromRows(raw, amountC !== -1 ? amountC : -1, vatAmtC !== -1 ? vatAmtC : -1);
+        if (st) sheetTotals.push(st);
+
+        // Parse data rows
+        for (var i = headerIdx + 1; i < raw.length; i++) {
+          var row = raw[i]; if (!row) continue;
+          var cid = row[caseIdC]; if (!cid) continue;
+          var cidStr = String(cid).trim();
+          if (!cidStr || !/^\d/.test(cidStr)) continue;
+
+          var isOut    = outStart !== -1 && i > outStart;
+          var amount   = typeof row[amountC] === 'number' ? row[amountC] : parseFloat(row[amountC]) || 0;
+          // For OUT rows, flip the sign rather than forcing negative with -abs().
+          // LEX sometimes stores a reversal of a payment out as already negative;
+          // -abs() would double-negate it. Using -amount preserves the correct sign.
+          var finalAmt = isOut ? -amount : amount;
+          var vatPct      = typeof row[vatPctC] === 'number' ? row[vatPctC] : parseFloat(row[vatPctC]);
+          var effectiveVat = typeof row[vatAmtC] === 'number' ? row[vatAmtC] : parseFloat(row[vatAmtC]) || 0;
+          // VAT% >= 0.15 catches standard 20% (fuzzy, guards against float noise).
+          // Fallback: if VAT% is blank/NaN but a VAT amount exists, it's still 20%.
+          var taxType  = (vatPct >= 0.15) || (isNaN(vatPct) && Math.abs(effectiveVat) > 0)
+            ? '20% (VAT on Income)'
+            : 'Zero Rated Income';
+          var company  = row[companyC] ? String(row[companyC]).trim() : '';
+          var title    = (titleC !== -1 && row[titleC] && String(row[titleC]).trim()) ? String(row[titleC]).trim() : 'Anonymised';
+          var taxno    = row[taxnoC]   ? String(row[taxnoC]).trim()   : '';
+          // Include sheet name in description for traceability when >1 sheet
+          var descParts = psSheets.length > 1
+            ? [cidStr, sheetName, company, title]
+            : [cidStr, company, title];
+          var description = descParts.filter(Boolean).join(' | ');
+
+          // ── Blank-VAT% split logic ───────────────────────────────────────────
+          // When VAT% is blank but a VAT amount exists, LEX calculated VAT on a
+          // sub-portion of the total (e.g. fee only, excluding expenses).
+          // We split the row into:
+          //   1. A 20% entry for the clean VAT-inclusive amount (vatAmt × 6),
+          //      so that our amount/6 exactly equals LEX's VAT figure.
+          //   2. A Zero Rated adjustment entry for the remainder (total - vatAmt×6),
+          //      preserving the full amount and keeping Our VAT in sync with LEX.
+          var noVatPct = isNaN(vatPct) && taxType === '20% (VAT on Income)';
+          if (noVatPct && Math.abs(effectiveVat) > 0) {
+            var sign        = finalAmt < 0 ? -1 : 1;
+            var absVat      = Math.abs(effectiveVat);
+            var cleanAmt    = Math.round(absVat * 6 * 100) / 100;  // vatAmt × 6, rounded to pence
+            var adjAmt      = Math.round((Math.abs(finalAmt) - cleanAmt) * 100) / 100;
+            parsedRows.push({
+              date: fmtDate(row[receivedC]),
+              amount: sign * cleanAmt,
+              payee: selectedChambers,
+              description: description,
+              taxType: '20% (VAT on Income)',
+              reference: isOut ? description : taxno,
+              isOut: isOut,
+              noVatPct: true
+            });
+            if (Math.abs(adjAmt) >= 0.01) {
+              parsedRows.push({
+                date: fmtDate(row[receivedC]),
+                amount: sign * adjAmt,
+                payee: selectedChambers,
+                description: description + ' | adjustment',
+                taxType: 'Zero Rated Income',
+                reference: isOut ? description : taxno,
+                isOut: isOut,
+                noVatPct: false,
+                isAdj: true
+              });
+            }
+          } else {
+            parsedRows.push({
+              date: fmtDate(row[receivedC]),
+              amount: finalAmt,
+              payee: selectedChambers,
+              description: description,
+              taxType: taxType,
+              reference: isOut ? description : taxno,
+              isOut: isOut,
+              noVatPct: false
+            });
+          }
+        }
+      }
+
+      // ── Aggregate LEX totals across all sheets ───────────────────────────────
+      // Strategy 1: sum per-sheet totals extracted above
+      if (sheetTotals.length > 0) {
+        totalPyt = sheetTotals.reduce(function(s, t){ return s + t.total; }, 0);
+        lexVat   = sheetTotals.every(function(t){ return t.vat !== null; })
+          ? sheetTotals.reduce(function(s, t){ return s + t.vat; }, 0)
+          : null;
+      }
+      // Strategy 2: fall back to REPORT TOTALS sheet (already covers all barristers)
       if (totalPyt === null) {
         var rtSheet = wb.Sheets['REPORT TOTALS'];
         if (rtSheet) {
@@ -322,33 +521,7 @@ function parseFile(file) {
       }
       // ── End totals extraction ─────────────────────────────────────────────────
 
-      parsedRows = [];
-      for (var i = headerIdx + 1; i < raw.length; i++) {
-        var row = raw[i]; if (!row) continue;
-        var cid = row[caseIdC]; if (!cid) continue;
-        var cidStr = String(cid).trim();
-        if (!cidStr || !/^\d/.test(cidStr)) continue;
-
-        var isOut    = outStart !== -1 && i > outStart;
-        var amount   = typeof row[amountC] === 'number' ? row[amountC] : parseFloat(row[amountC]) || 0;
-        var finalAmt = isOut ? -Math.abs(amount) : amount;
-        var vatPct   = typeof row[vatPctC] === 'number' ? row[vatPctC] : parseFloat(row[vatPctC]) || 0;
-        var taxType  = vatPct >= 0.15 ? '20% (VAT on Income)' : 'Zero Rated Income';
-        var company  = row[companyC] ? String(row[companyC]).trim() : '';
-        var title    = (titleC !== -1 && row[titleC] && String(row[titleC]).trim()) ? String(row[titleC]).trim() : 'Anonymised';
-        var taxno    = row[taxnoC]   ? String(row[taxnoC]).trim()   : '';
-        var description = [cidStr, company, title].filter(Boolean).join(' | ');
-
-        parsedRows.push({
-          date: fmtDate(row[receivedC]),
-          amount: finalAmt,
-          payee: 'Chambers',
-          description: description,
-          taxType: taxType,
-          reference: isOut ? description : taxno,
-          isOut: isOut
-        });
-      }
+      var sheetName = psSheets.join(', ');  // used in sheet-note below
 
       // VAT check
       var ourVat = parsedRows.reduce(function(s, r) {
@@ -367,6 +540,17 @@ function parseFile(file) {
         vatBadge.className = 'match-badge err';
       }
 
+      // VAT warning for blank-VAT% rows
+      var noVatPctRows = parsedRows.filter(function(r){ return r.noVatPct; });
+      var vatWarning = document.getElementById('vat-warning');
+      if (noVatPctRows.length > 0) {
+        var n = noVatPctRows.length;
+        vatWarning.textContent = '⚠ ' + n + ' row' + (n > 1 ? 's have' : ' has') + ' an empty VAT% — VAT was calculated by LEX on a different base. See rows highlighted in the table.';
+        vatWarning.style.display = 'block';
+      } else {
+        vatWarning.style.display = 'none';
+      }
+
       // Total check
       var ourTotal = parsedRows.reduce(function(s, r){ return s + r.amount; }, 0);
       var match = totalPyt !== null && Math.abs(totalPyt - ourTotal) < 0.01;
@@ -382,11 +566,11 @@ function parseFile(file) {
       tbody.innerHTML = '';
       parsedRows.forEach(function(r) {
         var tr = document.createElement('tr');
-        tr.className = r.isOut ? 'row-out' : 'row-in';
+        tr.className = r.isAdj ? 'row-adj' : (r.noVatPct ? 'row-vatwarning' : (r.isOut ? 'row-out' : 'row-in'));
         tr.innerHTML =
           '<td>' + r.date + '</td>' +
           '<td class="amt ' + (r.amount < 0 ? 'neg' : 'pos') + '">' + fmt(r.amount) + '</td>' +
-          '<td class="muted">' + r.payee + '</td>' +
+          '<td class="muted payee-cell">' + r.payee + '</td>' +
           '<td class="desc" title="' + r.description.replace(/"/g,'&quot;') + '">' + r.description + '</td>' +
           '<td class="purple" style="white-space:nowrap">' + r.taxType + '</td>' +
           '<td class="slate desc" title="' + r.reference.replace(/"/g,'&quot;') + '">' + r.reference + '</td>' +
